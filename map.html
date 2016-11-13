@@ -3,6 +3,7 @@
   <head>
     <style type="text/css">
 		html, body { height: 100%; margin: 0; padding: 0; }
+		#hdr { font-weight: bold; font-size: 48px; margin: 10px; }
 		#map { height: 70%; margin: 0; padding: 0; }
 		ul { width: 100%; float: left; }
 		li { width: 200px; border: 1px solid #331111; padding: 10px; margin-left: 10px; float: left; list-style-type: none; text-align: center; cursor: pointer; }
@@ -20,6 +21,7 @@
 	<script type="text/javascript" src="GeoRest.js"></script>
 </head>
 <body>
+    <div id="hdr">Sample Restaurant Geo Guide</div>
     <div id="map"></div>
     <ul id="menu">
 		<li>All Restaurants</li>
@@ -28,8 +30,8 @@
 		<li>Italian Restaurants</li>
 		<li>Mexican Restaurants</li>
      </ul>
-     <div id="direction">Get Directions</div>
-	 <div id="dtarget" style="display: none;">0</div>
+     <div id="direction" style="font-weight: bold;" title="Get directions to highlighted location.">Get Directions</div>
+	 <div id="dtarget" style="display: none;">-1</div>
 	 <div id="genre_sel" style="display: none;"></div>
    <script type="text/javascript">
 
@@ -95,13 +97,14 @@ function initMap() {
   	}
 	
 	google.maps.event.addDomListener(direction, 'click', function() {
-		calculateAndDisplayRoute(directionsService, directionsDisplay, curloc, markers);
+		var index0 = document.getElementById("dtarget").innerText;
+		if (index0 >= 0)
+			calculateAndDisplayRoute(directionsService, directionsDisplay, curloc, markers[index0]);
 	});
 }
 
-function calculateAndDisplayRoute(directionsService, directionsDisplay, loc, markers) {
+function calculateAndDisplayRoute(directionsService, directionsDisplay, loc, marker) {
 	var selectedMode = 'WALKING';
-	var marker = markers[document.getElementById("dtarget").innerText];
 
 	var dest = {};
 	dest.lat = marker.getPosition().lat();
