@@ -2,33 +2,39 @@
 <html>
   <head>
     <style type="text/css">
-      html, body { height: 100%; margin: 0; padding: 0; }
-      #map { height: 70%; margin: 0; padding: 0; }
-      ul { width: 100%; float: left; }
-      li { width: 200px; border: 1px solid #331111; padding: 10px; margin-left: 10px; float: left; list-style-type: none; text-align: center; cursor: pointer; }
-      li:first-child { background-color: #EEEEEE }
-      li:nth-child(2) { background-color: #DDDDFF }
-      li:nth-child(3) { background-color: #FFDDDD }
-      li:nth-child(4) { background-color: #DDFFDD }
-      li:nth-child(5) { background-color: #FFFFDD }
-      #direction { clear: both; margin: 50px 0 0 100px; padding: 10px; background-color: #FFFFFF; width: 200px; border: 1px solid #111133; text-align: center; cursor: pointer; }
-	
-
+		html, body { height: 100%; margin: 0; padding: 0; }
+		#map { height: 70%; margin: 0; padding: 0; }
+		ul { width: 100%; float: left; }
+		li { width: 200px; border: 1px solid #331111; padding: 10px; margin-left: 10px; float: left; list-style-type: none; text-align: center; cursor: pointer; }
+		li:first-child { background-color: #EEEEEE }
+		li:nth-child(2) { background-color: #DDDDFF }
+		li:nth-child(3) { background-color: #FFDDDD }
+		li:nth-child(4) { background-color: #DDFFDD }
+		li:nth-child(5) { background-color: #FFFFDD }
+		#direction { clear: both; margin: 50px 0 0 100px;
+			padding: 10px; background-color: #FFFFFF; width: 200px;
+			border: 1px solid #111133; text-align: center; cursor: pointer;
+		}
     </style>
-  </head>
-  <body>
+	<script type="text/javascript" src="jquery-3.1.1.slim.min.js"></script>
+	<script type="text/javascript" src="GeoRest.js"></script>
+</head>
+<body>
     <div id="map"></div>
     <ul id="menu">
-        <li>All Restaurants</li>
-        <li id="japanese">Japanese Restaurants</li>
-        <li id="chinese">Chinese Restaurants</li>
-        <li id="italian">Italian Restaurants</li>
-        <li id="mexican">Mexican Restaurants</li>
+		<li>All Restaurants</li>
+		<li>Japanese Restaurants</li>
+		<li>Chinese Restaurants</li>
+		<li>Italian Restaurants</li>
+		<li>Mexican Restaurants</li>
      </ul>
      <div id="direction">Get Directions</div>
+	 <div id="dtarget" style="display: none;">0</div>
+	 <div id="genre_sel" style="display: none;"></div>
    <script type="text/javascript">
 
 var map;
+var markers = [];
 
 function initMap() {
 	var pos = new google.maps.LatLng(35.655314,139.700995);
@@ -42,23 +48,38 @@ function initMap() {
 		center: {lat: 35.68, lng: 139.69},
 		zoom: 12
 	});
-	//var directionsDisplay;
-	//var directionsService = new google.maps.DirectionsService();
 	var curloc = {};
-
 	directionsDisplay.setMap(map);
 
 	infoWnd = new google.maps.InfoWindow();
-
-	var marker = new google.maps.Marker({
-		position: pos,
-		map: map,
-		icon: 'dot.png',
-		title: 'Gold Rush',
-		genre: 'Mexican, Italian'
-	});
-
-	// Try HTML5 geolocation.
+	map.data.addGeoJson(restaurantCollection);
+	
+	var i;
+	for (i=0;i<restaurantCollection.features.length;i++) {
+		var coords = restaurantCollection.features[i].geometry.coordinates;
+		var latLng = new google.maps.LatLng(coords[0],coords[1]);
+		var title0 = restaurantCollection.features[i].properties.name
+		
+		var genre0 = restaurantCollection.features[i].properties.genre.length <= 0 ? "unknown" : 
+			restaurantCollection.features[i].properties.genre[0];
+		
+		markers[i] = new google.maps.Marker({
+			position: latLng,
+			map: map,
+			icon: genre0 + ".png",
+			title: title0,
+			genre: genre0,
+			restid: i
+		});
+		var cur_marker = markers[i];
+		
+		google.maps.event.addListener(markers[i], 'click', function() {
+			document.getElementById("dtarget").innerText = this.restid;
+			infoWnd.setContent(this.title);
+			infoWnd.open(map, this);
+		});
+	}
+	
 	if (navigator.geolocation) {
 		navigator.geolocation.getCurrentPosition(function(position) {
 		curloc = {
@@ -70,25 +91,17 @@ function initMap() {
 			handleLocationError(true, infoWindow, map.getCenter());
 		});
   	} else {
-    		// Browser doesn't support Geolocation
-    		handleLocationError(false, infoWindow, map.getCenter());
+    	handleLocationError(false, infoWindow, map.getCenter());
   	}
-
-	google.maps.event.addListener(marker, 'click', function() {
-		//window.location.href = 'http://yahoo.com';
-	});
-	google.maps.event.addDomListener(menu, 'click', function() {
-		//var genre = this.innerText.split()[0];
-		marker.setVisible(false);
-	});
+	
 	google.maps.event.addDomListener(direction, 'click', function() {
-		calculateAndDisplayRoute(directionsService, directionsDisplay, curloc, marker);
+		calculateAndDisplayRoute(directionsService, directionsDisplay, curloc, markers);
 	});
 }
 
-function calculateAndDisplayRoute(directionsService, directionsDisplay, loc, marker) {
-	//var selectedMode = document.getElementById('mode').value;
+function calculateAndDisplayRoute(directionsService, directionsDisplay, loc, markers) {
 	var selectedMode = 'WALKING';
+	var marker = markers[document.getElementById("dtarget").innerText];
 
 	var dest = {};
 	dest.lat = marker.getPosition().lat();
@@ -112,6 +125,32 @@ function calculateAndDisplayRoute(directionsService, directionsDisplay, loc, mar
 		}
 	});
 }
+
+$("#menu").find("li").click(function() {
+	var tmp = $(this).text().split(" ")[0];
+	var min_active = -1;
+	var tmp_invis = false;
+	
+	for (i=0;i<markers.length;i++) {
+		markers[i].setVisible(false);
+		if ((markers[i].genre.indexOf(tmp) >= 0) || ($(this).index() == 0)) {
+			markers[i].setVisible(true);
+			if (min_active < 0) {
+				min_active = i;
+			}
+		}
+		else {
+			if (i == document.getElementById("dtarget").innerText) {
+				tmp_invis = true;
+			}
+		}
+		$(this).siblings().css("font-weight", "normal")
+		$(this).css("font-weight", "bold")
+	}
+	if (tmp_invis) {
+		document.getElementById("dtarget").innerText = min_active;
+	}
+});
 
     </script>
     <script async defer
